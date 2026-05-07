@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RSS Regio Filter</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f4f6f9;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #003082;
+      color: #fff;
+      padding: 1.2rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 600; }
+    header .subtitle { font-size: 0.85rem; opacity: 0.75; margin-top: 0.15rem; }
+
+    .shield { font-size: 1.8rem; }
+
+    main { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.08);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: #003082; }
+
+    label { display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.3rem; color: #444; }
+
+    select, textarea {
+      width: 100%;
+      border: 1px solid #cdd;
+      border-radius: 6px;
+      padding: 0.55rem 0.7rem;
+      font-size: 0.95rem;
+      font-family: inherit;
+      background: #fafafa;
+      transition: border-color .2s;
+    }
+    select:focus, textarea:focus { outline: none; border-color: #003082; background: #fff; }
+    textarea { resize: vertical; min-height: 110px; }
+
+    .hint { font-size: 0.78rem; color: #888; margin-top: 0.3rem; }
+
+    button {
+      background: #003082;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 0.65rem 1.6rem;
+      font-size: 0.95rem;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 600;
+      transition: background .2s;
+    }
+    button:hover { background: #00205a; }
+    button:disabled { background: #9ab; cursor: not-allowed; }
+
+    .spinner {
+      display: none;
+      width: 18px; height: 18px;
+      border: 3px solid #fff4;
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      margin-left: 0.6rem;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #results { margin-top: 0; }
+
+    .region-badge {
+      display: inline-block;
+      background: #e8eef8;
+      color: #003082;
+      border-radius: 20px;
+      padding: 0.2rem 0.8rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+
+    .feed-block { margin-bottom: 1.5rem; }
+    .feed-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #003082;
+      margin-bottom: 0.6rem;
+      border-left: 4px solid #003082;
+      padding-left: 0.6rem;
+    }
+    .feed-url { font-size: 0.75rem; color: #888; word-break: break-all; }
+    .feed-error {
+      background: #fff3f3;
+      border: 1px solid #f5c6c6;
+      border-radius: 6px;
+      padding: 0.6rem 0.8rem;
+      color: #b00;
+      font-size: 0.85rem;
+      margin-top: 0.4rem;
+    }
+    .no-results {
+      color: #888;
+      font-size: 0.88rem;
+      font-style: italic;
+      padding: 0.4rem 0;
+    }
+
+    .item {
+      border: 1px solid #e8eaf0;
+      border-radius: 8px;
+      padding: 0.9rem 1rem;
+      margin-bottom: 0.7rem;
+      background: #fafbfd;
+      transition: box-shadow .15s;
+    }
+    .item:hover { box-shadow: 0 2px 8px rgba(0,48,130,.1); }
+
+    .item-title {
+      font-weight: 600;
+      font-size: 0.95rem;
+      margin-bottom: 0.35rem;
+    }
+    .item-title a { color: #003082; text-decoration: none; }
+    .item-title a:hover { text-decoration: underline; }
+
+    .item-meta { font-size: 0.75rem; color: #888; margin-bottom: 0.4rem; }
+
+    .item-summary {
+      font-size: 0.85rem;
+      color: #444;
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .error-msg {
+      background: #fff3f3;
+      border: 1px solid #f5c6c6;
+      border-radius: 8px;
+      padding: 1rem;
+      color: #b00;
+    }
+
+    @media (max-width: 600px) {
+      header { padding: 1rem; }
+      .card { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="shield">🛡</span>
+  <div>
+    <h1>RSS Regio Filter</h1>
+    <div class="subtitle">Filter nieuws per Nederlandse veiligheidsregio</div>
+  </div>
+</header>
+
+<main>
+  <div class="card">
+    <h2>Instellingen</h2>
+
+    <div style="margin-bottom:1rem">
+      <label for="region">Veiligheidsregio</label>
+      <select id="region">
+        {% for r in regions %}
+        <option value="{{ r }}">{{ r }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div style="margin-bottom:1.2rem">
+      <label for="feeds">RSS-feed URL's</label>
+      <textarea id="feeds" placeholder="https://feeds.nos.nl/nosnieuwsalgemeen.rss&#10;https://www.rtlnieuws.nl/feed&#10;..."></textarea>
+      <div class="hint">Voer één URL per regel in.</div>
+    </div>
+
+    <button id="btn-filter" onclick="runFilter()">
+      Filteren
+      <span class="spinner" id="spinner"></span>
+    </button>
+  </div>
+
+  <div id="results"></div>
+</main>
+
+<script>
+  async function runFilter() {
+    const region = document.getElementById('region').value;
+    const raw = document.getElementById('feeds').value.trim();
+    const urls = raw.split('\n').map(s => s.trim()).filter(Boolean);
+    const btn = document.getElementById('btn-filter');
+    const spinner = document.getElementById('spinner');
+    const out = document.getElementById('results');
+
+    if (!urls.length) {
+      out.innerHTML = '<div class="card error-msg">Voer minimaal één RSS-feed URL in.</div>';
+      return;
+    }
+
+    btn.disabled = true;
+    spinner.style.display = 'inline-block';
+    out.innerHTML = '';
+
+    try {
+      const res = await fetch('/api/filter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ region, urls }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        out.innerHTML = `<div class="card error-msg">${escHtml(data.error || 'Onbekende fout')}</div>`;
+        return;
+      }
+
+      renderResults(data);
+    } catch (e) {
+      out.innerHTML = `<div class="card error-msg">Fout bij ophalen: ${escHtml(e.message)}</div>`;
+    } finally {
+      btn.disabled = false;
+      spinner.style.display = 'none';
+    }
+  }
+
+  function renderResults(data) {
+    const out = document.getElementById('results');
+    const totalItems = data.results.reduce((s, r) => s + r.items.length, 0);
+
+    let html = `<div class="card">
+      <span class="region-badge">📍 ${escHtml(data.region)}</span>
+      <div style="font-size:.88rem;color:#555;margin-bottom:1rem">
+        ${totalItems} bericht${totalItems !== 1 ? 'en' : ''} gevonden in ${data.results.length} feed${data.results.length !== 1 ? 's' : ''}
+      </div>`;
+
+    for (const feed of data.results) {
+      html += `<div class="feed-block">
+        <div class="feed-title">${escHtml(feed.feed_title || feed.url)}</div>
+        <div class="feed-url">${escHtml(feed.url)}</div>`;
+
+      if (feed.error) {
+        html += `<div class="feed-error">Fout: ${escHtml(feed.error)}</div>`;
+      } else if (feed.items.length === 0) {
+        html += `<div class="no-results">Geen berichten gevonden voor deze regio.</div>`;
+      } else {
+        for (const item of feed.items) {
+          const dateStr = item.date ? formatDate(item.date) : '';
+          const summary = stripHtml(item.summary);
+          html += `<div class="item">
+            <div class="item-title"><a href="${escAttr(item.link)}" target="_blank" rel="noopener">${escHtml(item.title)}</a></div>
+            ${dateStr ? `<div class="item-meta">${dateStr}</div>` : ''}
+            ${summary ? `<div class="item-summary">${escHtml(summary)}</div>` : ''}
+          </div>`;
+        }
+      }
+      html += '</div>';
+    }
+
+    html += '</div>';
+    out.innerHTML = html;
+  }
+
+  function formatDate(iso) {
+    try {
+      return new Date(iso).toLocaleString('nl-NL', {
+        day: 'numeric', month: 'long', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      });
+    } catch { return iso; }
+  }
+
+  function stripHtml(str) {
+    if (!str) return '';
+    return str.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function escAttr(s) {
+    return String(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+</script>
+</body>
+</html>
